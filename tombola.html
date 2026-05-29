@@ -1423,11 +1423,37 @@ function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
 // ============================================================
 // AUTH
 // ============================================================
+async function waitForSupabase() {
+  let tries = 0;
+  while (!window.supabase && tries < 80) {
+    await new Promise(r => setTimeout(r, 50));
+    tries++;
+  }
+  if (!window.supabase) throw new Error('supabase module failed to load');
+}
+
 async function initAuth() {
+  await waitForSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   currentUser = user;
   updateAuthUI();
   await loadDataForUser();
+}
+
+function requestSignIn() {
+  const bar = document.getElementById('auth-bar');
+  bar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  bar.style.transition = 'background 200ms';
+  const orig = getComputedStyle(bar).background;
+  bar.style.background = 'var(--accent)';
+  bar.style.color = 'var(--bg)';
+  setTimeout(() => {
+    bar.style.background = '';
+    bar.style.color = '';
+  }, 700);
+  setTimeout(() => {
+    document.getElementById('auth-email')?.focus();
+  }, 750);
 }
 
 function updateAuthUI() {
@@ -1486,10 +1512,13 @@ function showAuthMessage(msg, isError) {
 }
 
 // ============================================================
-// PERSISTENCE - routes to Supabase if signed in, localStorage if not
+// PERSISTENCE - Supabase when signed in, no-op when anonymous
+// (anonymous users can use the tool but cannot save state)
+// UI state like activeListId and captain players text uses localStorage either way
 // ============================================================
 async function loadDataForUser() {
   state.activeListId = load(STORAGE.GENERAL_ACTIVE, null);
+  state.captainPlayersText = load(STORAGE.CAPTAIN_PLAYERS, '');
   if (currentUser) {
     try {
       const [listsRes, captainLogRes, captainPlayersRes] = await Promise.all([
@@ -1504,38 +1533,33 @@ async function loadDataForUser() {
       state.captainLog = (captainLogRes.data || []).map(r => ({
         date: r.date, cap1: r.cap1, cap2: r.cap2, winner: r.winner
       }));
-      state.captainPlayersText = captainPlayersRes.data?.players_text || '';
+      if (captainPlayersRes.data?.players_text) {
+        state.captainPlayersText = captainPlayersRes.data.players_text;
+      }
     } catch (e) {
       console.error('failed to load from supabase', e);
     }
   } else {
-    state.generalLists = load(STORAGE.GENERAL_LISTS, []);
-    state.captainLog = load(STORAGE.CAPTAIN_LOG, []);
-    state.captainPlayersText = load(STORAGE.CAPTAIN_PLAYERS, '');
+    state.generalLists = [];
+    state.captainLog = [];
   }
 }
 
 async function persistList(list) {
-  if (currentUser) {
-    try {
-      await supabase.from('tombola_lists').upsert({
-        id: list.id, user_id: currentUser.id,
-        name: list.name, options: list.options, history: list.history,
-        last_picked: list.lastPicked, updated_at: new Date().toISOString()
-      });
-    } catch (e) { console.error('persistList failed', e); }
-  } else {
-    save(STORAGE.GENERAL_LISTS, state.generalLists);
-  }
+  if (!currentUser) return;
+  try {
+    await supabase.from('tombola_lists').upsert({
+      id: list.id, user_id: currentUser.id,
+      name: list.name, options: list.options, history: list.history,
+      last_picked: list.lastPicked, updated_at: new Date().toISOString()
+    });
+  } catch (e) { console.error('persistList failed', e); }
 }
 
 async function deleteListRemote(id) {
-  if (currentUser) {
-    try { await supabase.from('tombola_lists').delete().eq('id', id); }
-    catch (e) { console.error('deleteList failed', e); }
-  } else {
-    save(STORAGE.GENERAL_LISTS, state.generalLists);
-  }
+  if (!currentUser) return;
+  try { await supabase.from('tombola_lists').delete().eq('id', id); }
+  catch (e) { console.error('deleteList failed', e); }
 }
 
 function persistActiveId() {
@@ -1544,33 +1568,28 @@ function persistActiveId() {
 }
 
 async function appendCaptainLog(row) {
-  if (currentUser) {
-    try {
-      await supabase.from('tombola_captain_log').insert({ user_id: currentUser.id, ...row });
-    } catch (e) { console.error('appendCaptainLog failed', e); }
-  } else {
-    save(STORAGE.CAPTAIN_LOG, state.captainLog);
-  }
+  if (!currentUser) return;
+  try {
+    await supabase.from('tombola_captain_log').insert({ user_id: currentUser.id, ...row });
+  } catch (e) { console.error('appendCaptainLog failed', e); }
 }
 
 async function replaceCaptainLog(newRows) {
-  if (currentUser) {
-    try {
-      await supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id);
-      if (newRows.length) {
-        await supabase.from('tombola_captain_log').insert(
-          newRows.map(r => ({ user_id: currentUser.id, ...r }))
-        );
-      }
-    } catch (e) { console.error('replaceCaptainLog failed', e); }
-  } else {
-    save(STORAGE.CAPTAIN_LOG, state.captainLog);
-  }
+  if (!currentUser) return;
+  try {
+    await supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id);
+    if (newRows.length) {
+      await supabase.from('tombola_captain_log').insert(
+        newRows.map(r => ({ user_id: currentUser.id, ...r }))
+      );
+    }
+  } catch (e) { console.error('replaceCaptainLog failed', e); }
 }
 
 let _persistPlayersTimer = null;
 function persistCaptainPlayers(text) {
   state.captainPlayersText = text;
+  save(STORAGE.CAPTAIN_PLAYERS, text);  // always cache locally
   if (currentUser) {
     clearTimeout(_persistPlayersTimer);
     _persistPlayersTimer = setTimeout(async () => {
@@ -1581,8 +1600,6 @@ function persistCaptainPlayers(text) {
         });
       } catch (e) { console.error('persistCaptainPlayers failed', e); }
     }, 600);
-  } else {
-    save(STORAGE.CAPTAIN_PLAYERS, text);
   }
 }
 
@@ -1858,6 +1875,10 @@ function confirmLogPick() {
 }
 
 function openSaveModal() {
+  if (!currentUser) {
+    requestSignIn();
+    return;
+  }
   document.getElementById('save-name').value = '';
   document.getElementById('save-error').textContent = '';
   document.getElementById('save-modal').classList.add('open');
@@ -2136,6 +2157,10 @@ function doCoinToss(c1, c2) {
 }
 
 function openLogModal() {
+  if (!currentUser) {
+    requestSignIn();
+    return;
+  }
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, '0');
   const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -2299,7 +2324,17 @@ document.getElementById('log-date').addEventListener('keydown', e => {
 
 async function init() {
   applyTheme('general');
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (e) {
+    console.error('auth init failed, proceeding anonymous', e);
+    currentUser = null;
+    state.activeListId = load(STORAGE.GENERAL_ACTIVE, null);
+    state.captainPlayersText = load(STORAGE.CAPTAIN_PLAYERS, '');
+    state.generalLists = [];
+    state.captainLog = [];
+    updateAuthUI();
+  }
   renderSavedLists();
   if (state.captainPlayersText) document.getElementById('c-players').value = state.captainPlayersText;
   renderCaptainContext();
