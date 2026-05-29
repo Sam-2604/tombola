@@ -1,0 +1,2065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tombola</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100vh; -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  button { font: inherit; cursor: pointer; }
+  code { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  /* ================================================================
+     TOMBOLA THEME - restrained 70s board-game
+     3-colour palette: cream / ink-navy / tomato
+  ================================================================ */
+  body.theme-general {
+    --bg: #F1EADB;
+    --bg-paper: #E8DFC8;
+    --bg-deep: #DCD0B3;
+    --ink: #1F2A44;
+    --ink-soft: #3E4A66;
+    --ink-mute: #707A8E;
+    --ink-faint: #A8AEBC;
+    --rule: #C6BCA1;
+    --rule-strong: #1F2A44;
+    --accent: #D14B36;
+    --accent-soft: #E89684;
+    --accent-deep: #A53826;
+    --highlight: #F1E1B8;
+    --serif: 'Fraunces', Georgia, serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body.theme-general::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.17 0 0 0 0 0.27 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    pointer-events: none;
+    opacity: 0.55;
+    z-index: 0;
+  }
+
+  /* ================================================================
+     CAPTAIN THEME - chalk on the pitch (unchanged)
+  ================================================================ */
+  body.theme-captain {
+    --bg: #1B4332;
+    --bg-paper: #2D5A3D;
+    --bg-deep: #143626;
+    --ink: #FAFAF5;
+    --ink-soft: #E8E8DC;
+    --ink-mute: #B8C5B0;
+    --ink-faint: #7F8F75;
+    --rule: #4A6F50;
+    --rule-strong: #FAFAF5;
+    --accent: #F5E663;
+    --accent-soft: #FFF099;
+    --accent-deep: #C9BC3D;
+    --highlight: rgba(245,230,99,0.15);
+    --serif: 'Special Elite', 'Courier New', monospace;
+    --mono: 'Special Elite', 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body.theme-captain::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(255,255,255,0.025) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.02) 0%, transparent 50%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 0.9 0 0 0 0.08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    pointer-events: none;
+    opacity: 1;
+    z-index: 0;
+  }
+  body.theme-captain::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(to right, transparent 49.8%, rgba(250,250,245,0.10) 49.8%, rgba(250,250,245,0.10) 50.2%, transparent 50.2%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ================================================================
+     LAYOUT
+  ================================================================ */
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 44px 32px 96px;
+  }
+
+  /* ================================================================
+     HEADER - editorial top bar
+  ================================================================ */
+  header.brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding-bottom: 14px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .theme-general header.brand {
+    border-bottom: 3px double var(--ink);
+  }
+  .theme-captain header.brand {
+    border-bottom: 1px dashed var(--rule);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+
+  .brand-left {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .theme-general .brand-mark {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 38px;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    color: var(--ink);
+    font-variation-settings: 'opsz' 96, 'SOFT' 50;
+  }
+  .theme-general .brand-mark::after {
+    content: '·';
+    color: var(--accent);
+    margin-left: 4px;
+  }
+  .theme-general .brand-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-mute);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding-bottom: 4px;
+  }
+  .theme-captain .brand-mark {
+    font-family: var(--serif);
+    font-size: 30px;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    text-transform: uppercase;
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+    line-height: 1;
+  }
+
+  .info-link {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    background: none;
+    border: 1px solid var(--rule);
+    padding: 6px 10px;
+    letter-spacing: 0.02em;
+    transition: all 120ms ease;
+  }
+  .theme-general .info-link {
+    background: var(--bg-paper);
+    border-color: var(--ink);
+  }
+  .info-link:hover {
+    background: var(--ink);
+    color: var(--bg);
+  }
+
+  /* Editorial sub-header strip */
+  .theme-general .strip {
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding: 4px 0;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--ink);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .theme-general .strip-mark {
+    color: var(--accent);
+    letter-spacing: 0;
+  }
+
+  /* ================================================================
+     MODE TABS
+  ================================================================ */
+  nav.modes {
+    display: flex;
+    width: fit-content;
+    margin-bottom: 32px;
+  }
+  .theme-general nav.modes {
+    border: 1.5px solid var(--ink);
+  }
+  .theme-captain nav.modes {
+    border: 1px dashed var(--rule-strong);
+  }
+  nav.modes button {
+    background: transparent;
+    border: none;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 10px 22px;
+    transition: all 120ms ease;
+  }
+  .theme-general nav.modes button { border-right: 1.5px solid var(--ink); }
+  .theme-captain nav.modes button { border-right: 1px dashed var(--rule-strong); }
+  nav.modes button:last-child { border-right: none; }
+  .theme-general nav.modes button.active { background: var(--ink); color: var(--bg); }
+  .theme-captain nav.modes button.active { background: var(--ink); color: var(--bg); }
+  nav.modes button:hover:not(.active) { background: var(--bg-paper); }
+
+  /* ================================================================
+     LEDE
+  ================================================================ */
+  .theme-general .lede {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.35;
+    color: var(--ink);
+    margin-bottom: 6px;
+    font-variation-settings: 'opsz' 36;
+    font-weight: 500;
+    max-width: 600px;
+    letter-spacing: -0.01em;
+  }
+  .theme-general .lede .accent {
+    color: var(--accent);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .theme-captain .lede {
+    font-family: var(--serif);
+    font-size: 24px;
+    line-height: 1.3;
+    color: var(--ink);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .theme-captain .lede .accent { color: var(--accent); }
+
+  .sub-lede {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-mute);
+    margin-bottom: 36px;
+    max-width: 540px;
+    line-height: 1.6;
+  }
+  .theme-general .sub-lede em {
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .theme-captain .sub-lede {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Decorative section break */
+  .theme-general .section-break {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 32px 0;
+    color: var(--ink-mute);
+  }
+  .theme-general .section-break::before,
+  .theme-general .section-break::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+  .theme-general .section-break .ornament {
+    font-family: var(--serif);
+    font-size: 16px;
+    color: var(--accent);
+    line-height: 0;
+  }
+
+  /* ================================================================
+     STEPS - numbered with coloured badges
+  ================================================================ */
+  .step { margin-bottom: 28px; transition: opacity 280ms ease; }
+  .step.locked { opacity: 0.32; pointer-events: none; }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .theme-general .step-num {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--bg);
+    background: var(--ink);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-variation-settings: 'opsz' 18;
+    letter-spacing: 0;
+  }
+  .step[data-step="2"] .step-num { background: var(--accent); }
+  .step[data-step="3"] .step-num {
+    background: var(--bg);
+    color: var(--ink);
+    border: 1.5px solid var(--ink);
+  }
+
+  .theme-general .step-title {
+    font-family: var(--serif);
+    font-size: 17px;
+    color: var(--ink);
+    font-weight: 500;
+    flex: 1;
+    letter-spacing: -0.005em;
+    font-variation-settings: 'opsz' 24;
+  }
+
+  .theme-captain .step-num {
+    font-family: var(--serif);
+    font-size: 16px;
+    color: var(--accent);
+    width: 32px;
+    flex-shrink: 0;
+    letter-spacing: 0.05em;
+  }
+  .theme-captain .step-title {
+    font-family: var(--serif);
+    font-size: 16px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    flex: 1;
+  }
+
+  .step-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+  .theme-general .step-body { padding-left: 40px; }
+  .theme-captain .step-body { padding-left: 46px; }
+  .step-help {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-mute);
+    margin-bottom: 12px;
+    font-style: italic;
+    line-height: 1.55;
+  }
+
+  /* ================================================================
+     INPUTS
+  ================================================================ */
+  textarea, input[type="text"], input[type="number"] {
+    width: 100%;
+    background: var(--bg-paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 12px 14px;
+    line-height: 1.6;
+    transition: border-color 120ms ease;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .theme-general textarea, .theme-general input[type="text"], .theme-general input[type="number"] {
+    border: 1.5px solid var(--ink);
+    border-radius: 0;
+  }
+  .theme-general textarea:focus, .theme-general input:focus {
+    outline: none;
+    background: #FBF7EC;
+    border-color: var(--accent);
+  }
+  .theme-captain textarea, .theme-captain input[type="text"], .theme-captain input[type="number"] {
+    border: 1px dashed var(--rule);
+    border-radius: 0;
+    background: rgba(0,0,0,0.15);
+  }
+  .theme-captain textarea:focus, .theme-captain input:focus {
+    outline: none;
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  textarea::placeholder, input::placeholder { color: var(--ink-faint); }
+
+  /* ================================================================
+     SCHEME CARDS
+  ================================================================ */
+  .scheme-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .scheme-card {
+    border: 1.5px solid var(--ink);
+    background: var(--bg-paper);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 130ms ease;
+    text-align: left;
+    font-family: var(--mono);
+    position: relative;
+  }
+  .scheme-card:hover { background: var(--bg); }
+  .scheme-card.selected {
+    background: var(--ink);
+    color: var(--bg);
+    box-shadow: 3px 3px 0 var(--accent);
+    transform: translate(-2px, -2px);
+  }
+  .scheme-card .name {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 4px;
+    font-variation-settings: 'opsz' 24;
+    letter-spacing: -0.01em;
+  }
+  .scheme-card.selected .name { color: var(--bg); }
+  .scheme-card .desc {
+    font-size: 10.5px;
+    color: var(--ink-mute);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+  }
+  .scheme-card.selected .desc { color: var(--bg-paper); }
+
+  /* ================================================================
+     CONTEXTUAL INFO BELOW CARDS
+  ================================================================ */
+  .scheme-info {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    padding: 12px 14px;
+    background: var(--bg-paper);
+    border-left: 3px solid var(--accent);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .theme-captain .scheme-info {
+    background: rgba(0,0,0,0.15);
+    border-left: 2px solid var(--accent);
+  }
+  .scheme-info strong { color: var(--ink); font-weight: 600; }
+  .save-inline {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+  }
+  .save-inline:hover { color: var(--accent-deep); }
+  .theme-captain .save-inline:hover { color: var(--accent-soft); }
+
+  /* ================================================================
+     MANUAL WEIGHTS
+  ================================================================ */
+  .manual-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .manual-row:last-child { border-bottom: none; }
+  .manual-row .name { font-family: var(--mono); font-size: 13px; }
+  .manual-row input[type="number"] { width: 84px; text-align: right; padding: 5px 9px; font-size: 12px; }
+
+  /* ================================================================
+     WEIGHTS READOUT
+  ================================================================ */
+  .weights {
+    border: 1px solid var(--rule);
+    background: var(--bg-paper);
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .theme-general .weights { border: 1.5px solid var(--ink); }
+  .theme-captain .weights {
+    border: 1px dashed var(--rule);
+    background: rgba(0,0,0,0.10);
+  }
+  .weights-title {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .theme-captain .weights-title { border-bottom-style: dashed; }
+  .weights-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    color: var(--ink-mute);
+    font-variant-numeric: tabular-nums;
+  }
+  .weights-row .name { color: var(--ink); }
+  .weights-row.blocked .name { text-decoration: line-through; color: var(--ink-faint); }
+  .weights-row .w { color: var(--accent); font-weight: 600; }
+  .weights-row .gk-tag {
+    color: var(--accent);
+    font-size: 10px;
+    margin-left: 6px;
+    padding: 1px 5px;
+    border: 1px solid var(--accent);
+  }
+  .empty-state {
+    padding: 20px;
+    text-align: center;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  /* ================================================================
+     CHECKBOX
+  ================================================================ */
+  .check {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    cursor: pointer;
+    user-select: none;
+  }
+  .check .desc { color: var(--ink-mute); font-size: 11px; font-style: italic; }
+  .check input { display: none; }
+  .check .box {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--ink);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 120ms ease;
+  }
+  .theme-captain .check .box { border-style: dashed; border-width: 1px; border-color: var(--ink-mute); }
+  .check input:checked + .box { background: var(--accent); border-color: var(--accent); }
+  .theme-captain .check input:checked + .box { background: var(--accent); border-color: var(--accent); border-style: solid; }
+  .check input:checked + .box::after { content: '✓'; color: var(--bg); font-size: 11px; line-height: 1; font-weight: bold; }
+  .theme-general .check input:checked + .box::after { color: var(--ink); }
+
+  /* ================================================================
+     BUTTONS
+  ================================================================ */
+  button.primary {
+    border: none;
+    padding: 13px 28px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    transition: all 130ms ease;
+    font-weight: 500;
+  }
+  .theme-general button.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border: 1.5px solid var(--ink);
+    box-shadow: 3px 3px 0 var(--ink);
+    border-radius: 0;
+  }
+  .theme-general button.primary:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .theme-general button.primary:active:not(:disabled) {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--ink);
+  }
+  .theme-captain button.primary {
+    background: var(--accent);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+  }
+  .theme-captain button.primary:hover:not(:disabled) { background: var(--ink); color: var(--accent); }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+    padding: 9px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 120ms ease;
+  }
+  .theme-general button.secondary {
+    border: 1.5px solid var(--ink);
+    border-radius: 0;
+    background: var(--bg);
+  }
+  .theme-general button.secondary:hover { background: var(--ink); color: var(--bg); }
+  .theme-captain button.secondary { border: 1px dashed var(--ink); }
+  .theme-captain button.secondary:hover { background: var(--ink); color: var(--bg); border-style: solid; }
+
+  button.ghost {
+    background: transparent;
+    border: none;
+    color: var(--ink-mute);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    transition: color 120ms ease;
+  }
+  button.ghost:hover { color: var(--accent); }
+
+  /* ================================================================
+     PICK ACTION + REVEAL
+  ================================================================ */
+  .pick-action {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .theme-general .pick-action { padding-left: 40px; }
+  .theme-captain .pick-action { padding-left: 46px; }
+  .pick-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    font-style: italic;
+  }
+
+  .reveal {
+    margin-top: 28px;
+    padding: 32px 28px;
+    position: relative;
+  }
+  .theme-general .reveal {
+    margin-left: 40px;
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .theme-general .reveal::before {
+    content: '';
+    position: absolute;
+    inset: -5px -5px 5px 5px;
+    border: 1.5px solid var(--accent);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .theme-captain .reveal {
+    margin-left: 46px;
+    background: rgba(0,0,0,0.2);
+    border: 1px dashed var(--rule);
+  }
+  .reveal-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .theme-general .reveal-label { color: var(--accent); }
+  .theme-captain .reveal-label { color: var(--accent); }
+  .reveal-name {
+    line-height: 1;
+    transition: opacity 200ms ease;
+    word-break: break-word;
+  }
+  .theme-general .reveal-name {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 64px;
+    letter-spacing: -0.03em;
+    color: var(--bg);
+    font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  }
+  .theme-captain .reveal-name {
+    font-family: var(--serif);
+    font-size: 52px;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+  }
+  .reveal-name.shuffling { opacity: 0.55; }
+
+  .reveal-pair {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .theme-captain .reveal-pair { align-items: center; }
+  .theme-general .reveal-pair .reveal-name { font-size: 44px; }
+  .theme-captain .reveal-pair .reveal-name { font-size: 40px; }
+  .reveal-conj {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+  }
+  .theme-general .reveal-conj { color: var(--accent); }
+
+  .reveal-actions {
+    margin-top: 22px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .theme-general .reveal .secondary {
+    border-color: var(--bg);
+    color: var(--bg);
+    background: transparent;
+  }
+  .theme-general .reveal .secondary:hover { background: var(--bg); color: var(--ink); }
+  .theme-general .reveal .ghost { color: var(--bg); opacity: 0.7; }
+  .theme-general .reveal .ghost:hover { opacity: 1; color: var(--accent-soft); }
+
+  /* ================================================================
+     ACTIVE LIST BAR
+  ================================================================ */
+  .active-list-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--bg-paper);
+    border-left: 3px solid var(--accent);
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .theme-captain .active-list-bar {
+    background: rgba(0,0,0,0.15);
+    border-left: 2px solid var(--accent);
+  }
+  .active-list-bar strong { font-weight: 600; }
+  .active-list-bar .spacer { flex: 1; }
+
+  /* ================================================================
+     COIN TOSS
+  ================================================================ */
+  .coin-stage {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px dashed var(--rule);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .coin {
+    width: 88px;
+    height: 88px;
+    position: relative;
+    transform-style: preserve-3d;
+    perspective: 800px;
+  }
+  .coin-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+  }
+  .coin.flipping .coin-inner {
+    animation: coinflip 2.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  @keyframes coinflip {
+    0%   { transform: rotateY(0deg) translateY(0); }
+    20%  { transform: rotateY(720deg) translateY(-40px); }
+    40%  { transform: rotateY(1440deg) translateY(-60px); }
+    60%  { transform: rotateY(2160deg) translateY(-40px); }
+    80%  { transform: rotateY(2880deg) translateY(-15px); }
+    100% { transform: rotateY(3600deg) translateY(0); }
+  }
+  .coin.flipping.result-tails .coin-inner { animation-name: coinflip-tails; }
+  @keyframes coinflip-tails {
+    0%   { transform: rotateY(0deg) translateY(0); }
+    20%  { transform: rotateY(720deg) translateY(-40px); }
+    40%  { transform: rotateY(1440deg) translateY(-60px); }
+    60%  { transform: rotateY(2160deg) translateY(-40px); }
+    80%  { transform: rotateY(2880deg) translateY(-15px); }
+    100% { transform: rotateY(3780deg) translateY(0); }
+  }
+  .coin-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    border: 3px solid var(--accent-deep);
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.2), inset 0 -2px 0 rgba(0,0,0,0.15);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.1);
+    text-align: center;
+    padding: 8px;
+  }
+  .coin-face.heads { transform: rotateY(0deg); }
+  .coin-face.tails { transform: rotateY(180deg); }
+  .coin-face .label {
+    font-family: var(--serif);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    word-break: break-word;
+    line-height: 1.1;
+    font-weight: 500;
+  }
+  .toss-result {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    text-align: center;
+    min-height: 20px;
+  }
+  .toss-result .name {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--bg);
+    margin-left: 6px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .theme-captain .toss-result .name { color: var(--ink); }
+
+  /* ================================================================
+     SAVED LISTS
+  ================================================================ */
+  .saved-section {
+    margin-top: 52px;
+    padding-top: 28px;
+  }
+  .theme-general .saved-section { border-top: 1px solid var(--ink); }
+  .theme-captain .saved-section { border-top: 1px dashed var(--rule); }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 500;
+  }
+  .section-label .count {
+    color: var(--accent);
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+  .saved-list-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    margin-bottom: 6px;
+    font-family: var(--mono);
+    font-size: 13px;
+    transition: all 120ms ease;
+    cursor: pointer;
+  }
+  .theme-general .saved-list-item {
+    border: 1px solid var(--rule);
+    background: var(--bg-paper);
+  }
+  .theme-general .saved-list-item:hover {
+    border-color: var(--ink);
+  }
+  .theme-general .saved-list-item.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+    box-shadow: 3px 3px 0 var(--accent);
+  }
+  .theme-general .saved-list-item.active .name { color: var(--accent); font-weight: 500; }
+  .theme-general .saved-list-item.active .meta { color: var(--ink-faint); }
+  .saved-list-item .meta { color: var(--ink-mute); font-size: 11px; }
+  .saved-list-item .actions button { font-size: 10px; padding: 4px 6px; }
+  .theme-captain .saved-list-item { border: 1px dashed var(--rule); background: rgba(0,0,0,0.10); }
+  .theme-captain .saved-list-item.active { background: rgba(245,230,99,0.10); border-color: var(--accent); border-left: 2px solid var(--accent); color: var(--ink); }
+  .theme-captain .saved-list-item.active .name { color: var(--accent); }
+
+  /* ================================================================
+     CAPTAIN LOG TABLE
+  ================================================================ */
+  .captain-log { overflow-x: auto; }
+  .captain-log table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .captain-log th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--ink-mute);
+    font-weight: 500;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .captain-log td {
+    padding: 9px 14px;
+    border-bottom: 1px dashed var(--rule);
+    color: var(--ink);
+  }
+  .captain-log tr:last-child td { border-bottom: none; }
+  .captain-log .toss-win { color: var(--accent); font-weight: 600; }
+
+  /* ================================================================
+     MODAL
+  ================================================================ */
+  .modal-bg {
+    position: fixed;
+    inset: 0;
+    background: rgba(31,42,68,0.65);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .theme-captain .modal-bg { background: rgba(20,54,38,0.7); }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: var(--bg);
+    color: var(--ink);
+    padding: 28px;
+    max-width: 460px;
+    width: 100%;
+  }
+  .theme-general .modal {
+    border: 1.5px solid var(--ink);
+    box-shadow: 6px 6px 0 var(--accent);
+  }
+  .theme-captain .modal { border: 1px dashed var(--ink); }
+  .modal h3 {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 22px;
+    margin-bottom: 10px;
+    font-variation-settings: 'opsz' 36;
+    letter-spacing: -0.01em;
+  }
+  .modal p {
+    color: var(--ink-soft);
+    font-size: 12px;
+    margin-bottom: 12px;
+    line-height: 1.6;
+  }
+  .modal p strong { color: var(--ink); font-weight: 600; }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    justify-content: flex-end;
+  }
+  .modal-error {
+    color: var(--accent);
+    font-size: 11px;
+    margin-top: 6px;
+    min-height: 14px;
+  }
+
+  /* ================================================================
+     FOOTER
+  ================================================================ */
+  footer.note {
+    margin-top: 64px;
+    padding-top: 16px;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-faint);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .theme-general footer.note { border-top: 1px solid var(--rule); }
+  .theme-captain footer.note { border-top: 1px dashed var(--rule); }
+
+  /* ================================================================
+     RESPONSIVE
+  ================================================================ */
+  @media (max-width: 640px) {
+    main { padding: 28px 18px 56px; }
+    .theme-general .brand-mark { font-size: 30px; }
+    .theme-captain .brand-mark { font-size: 24px; }
+    .theme-general .brand-tag { display: none; }
+    header.brand { padding-bottom: 12px; margin-bottom: 4px; }
+    .theme-general .strip { font-size: 8px; }
+    .theme-general .lede { font-size: 19px; }
+    .theme-captain .lede { font-size: 20px; }
+    .sub-lede { margin-bottom: 28px; font-size: 11.5px; }
+    .scheme-cards { grid-template-columns: 1fr; gap: 6px; }
+    .scheme-card { padding: 12px 14px; }
+    .step-body, .pick-action, .reveal { padding-left: 0 !important; margin-left: 0 !important; }
+    .step-header { gap: 10px; }
+    .theme-general .reveal-name { font-size: 44px; }
+    .theme-captain .reveal-name { font-size: 38px; }
+    .reveal-pair .reveal-name { font-size: 32px !important; }
+    nav.modes { width: 100%; }
+    nav.modes button { flex: 1; padding: 11px 12px; }
+    .saved-list-item { grid-template-columns: 1fr auto; gap: 4px; padding: 10px 12px; }
+    .saved-list-item .meta { grid-column: 1; }
+    .modal { padding: 22px; }
+    .coin { width: 72px; height: 72px; }
+    .coin-face .label { font-size: 9px; }
+  }
+
+  /* ================================================================
+     ANIMATIONS
+  ================================================================ */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes stepReveal {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-in { animation: fadeIn 280ms ease both; }
+  .step.revealing { animation: stepReveal 320ms ease both; }
+</style>
+</head>
+<body class="theme-general">
+
+<main>
+  <header class="brand">
+    <div class="brand-left">
+      <div class="brand-mark" id="brand-mark">Tombola</div>
+      <div class="brand-tag" id="brand-tag">a picker</div>
+    </div>
+    <button class="info-link" id="info-btn">What is this?</button>
+  </header>
+
+  <nav class="modes" role="tablist">
+    <button data-mode="general" class="active">general</button>
+    <button data-mode="captain">captain</button>
+  </nav>
+
+  <!-- ================== GENERAL MODE ================== -->
+  <section id="general-mode">
+    <p class="lede" id="g-lede"></p>
+    <p class="sub-lede">A <em>truly random</em> picker. Or weighted, if you're tired of the same options getting chosen by chance. For example: <em>what to cook tonight, whose turn to drive, where to eat, who picks the music</em>.</p>
+
+    <!-- STEP 1 -->
+    <div class="step" data-step="1" id="g-step-1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">Your options</div>
+        <div class="step-hint" id="g-step-1-hint"></div>
+      </div>
+      <div class="step-body">
+        <p class="step-help">List the things to pick between, one per line. At least two.</p>
+        <textarea id="g-options" placeholder="pizza&#10;ramen&#10;burrito&#10;sushi"></textarea>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step locked" data-step="2" id="g-step-2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">How to pick</div>
+        <div class="step-hint" id="g-step-2-hint"></div>
+      </div>
+      <div class="step-body">
+        <div class="scheme-cards">
+          <div class="scheme-card selected" data-scheme="equal">
+            <div class="name">Equal</div>
+            <div class="desc">Pure random. Every option has the same chance.</div>
+          </div>
+          <div class="scheme-card" data-scheme="manual">
+            <div class="name">Manual</div>
+            <div class="desc">Set custom weights. Higher = more likely.</div>
+          </div>
+          <div class="scheme-card" data-scheme="fair">
+            <div class="name">Fair-rotation</div>
+            <div class="desc">Picks what you've chosen least.</div>
+          </div>
+        </div>
+
+        <div class="scheme-info" id="g-scheme-info"></div>
+
+        <div id="g-manual-block" hidden style="margin-top: 12px;">
+          <div id="g-manual-inputs"></div>
+        </div>
+
+        <div id="g-active-list-bar" hidden></div>
+
+        <div id="g-fair-readout-wrap" hidden style="margin-top: 14px;">
+          <div class="weights" id="g-fair-readout"></div>
+        </div>
+
+        <div id="g-exclude-wrap" hidden style="margin-top: 12px;">
+          <label class="check">
+            <input type="checkbox" id="g-exclude-last" checked><span class="box"></span>
+            Exclude last picked <span class="desc">- no back-to-back repeats</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step locked" data-step="3" id="g-step-3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">Pick</div>
+      </div>
+      <div class="step-body" style="padding-left: 0;">
+        <div class="pick-action">
+          <button class="primary" id="g-pick-btn">Pick one</button>
+          <span class="pick-meta" id="g-pick-meta"></span>
+        </div>
+        <div id="g-reveal-wrap"></div>
+      </div>
+    </div>
+
+    <div class="saved-section" id="g-saved-section" hidden>
+      <div class="section-label">
+        <span>Your saved lists</span>
+        <span class="count" id="g-saved-count"></span>
+      </div>
+      <div id="g-saved-lists"></div>
+    </div>
+  </section>
+
+  <!-- ================== CAPTAIN MODE ================== -->
+  <section id="captain-mode" hidden>
+    <p class="lede" id="c-lede"></p>
+    <p class="sub-lede">For recurring group sport. Whoever's captained least is most likely to be picked. Last week's captains can be blocked. Goalkeepers pair with goalkeepers.</p>
+
+    <div class="step" id="c-step-1">
+      <div class="step-header">
+        <div class="step-num">I.</div>
+        <div class="step-title">Today's squad</div>
+        <div class="step-hint" id="c-step-1-hint"></div>
+      </div>
+      <div class="step-body">
+        <p class="step-help">One name per line. Tag goalkeepers with <code>(gk)</code>.</p>
+        <textarea id="c-players" placeholder="kabir&#10;dev&#10;parth&#10;ronak (gk)"></textarea>
+        <div style="margin-top:10px;">
+          <button class="ghost" id="c-demo-btn">Load demo squad &amp; history</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="step locked" id="c-step-2">
+      <div class="step-header">
+        <div class="step-num">II.</div>
+        <div class="step-title">Eligibility &amp; weights</div>
+        <div class="step-hint" id="c-step-2-hint"></div>
+      </div>
+      <div class="step-body">
+        <p class="step-help">Lower weight = captained more often. Crossed-out names are blocked from this session.</p>
+        <div class="weights" id="c-context"></div>
+        <div style="margin-top: 12px;">
+          <label class="check">
+            <input type="checkbox" id="c-exclude-last" checked><span class="box"></span>
+            Exclude last session's captains <span class="desc">- on by default</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="step locked" id="c-step-3">
+      <div class="step-header">
+        <div class="step-num">III.</div>
+        <div class="step-title">Pick captains</div>
+      </div>
+      <div class="pick-action">
+        <button class="primary" id="c-pick-btn">Pick captains</button>
+      </div>
+      <div id="c-reveal-wrap"></div>
+    </div>
+
+    <div class="saved-section" id="c-log-section" hidden>
+      <div class="section-label">
+        <span>Session log</span>
+        <span class="count" id="c-log-count"></span>
+      </div>
+      <div class="captain-log">
+        <table>
+          <thead><tr><th>date</th><th>captain 1</th><th>captain 2</th><th>toss winner</th></tr></thead>
+          <tbody id="c-log-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="note">
+    <span>tombola · a picker</span>
+    <button class="ghost" id="reset-btn">reset all data</button>
+  </footer>
+</main>
+
+<!-- Modals -->
+<div class="modal-bg" id="info-modal">
+  <div class="modal">
+    <h3 id="info-title"></h3>
+    <div id="info-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" data-close>Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="save-modal">
+  <div class="modal">
+    <h3>Name this list</h3>
+    <p>Future picks from these options will use this list's history.</p>
+    <input type="text" id="save-name" placeholder="e.g. friday dinner, drive duty">
+    <div class="modal-error" id="save-error"></div>
+    <div class="modal-actions">
+      <button class="ghost" data-close>Cancel</button>
+      <button class="secondary" id="save-confirm">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="log-modal">
+  <div class="modal">
+    <h3>Log this session</h3>
+    <p>Records the pick to feed into future weights.</p>
+    <input type="text" id="log-date" placeholder="dd-mm-yyyy">
+    <div class="modal-error" id="log-error"></div>
+    <div class="modal-actions">
+      <button class="ghost" data-close>Cancel</button>
+      <button class="secondary" id="log-confirm">Log session</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="log-pick-modal">
+  <div class="modal">
+    <h3>Log this pick?</h3>
+    <p id="log-pick-text"></p>
+    <div class="modal-actions">
+      <button class="ghost" data-close>No, don't log</button>
+      <button class="secondary" id="log-pick-confirm">Yes, log it</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE = {
+  GENERAL_LISTS: 'tombola:general:lists',
+  GENERAL_ACTIVE: 'tombola:general:active',
+  CAPTAIN_LOG: 'tombola:captain:log',
+  CAPTAIN_PLAYERS: 'tombola:captain:players'
+};
+
+const DEMO_LOG = [
+  ['18-10-2025','Sahil','Deep','Sahil'],['22-10-2025','Kabir','Maddy','Kabir'],
+  ['25-10-2025','Parth','Soham','Parth'],['02-11-2025','Kunal','Aagam','Kunal'],
+  ['09-11-2025','Dev','Aagam','Dev'],['23-11-2025','Tanish','Kabir','Tanish'],
+  ['30-11-2025','Tanish','Aryaan','Tanish'],['21-12-2025','Jeneel','Soham','Jeneel'],
+  ['28-12-2025','Aagam','Kabir','Aagam'],['04-01-2026','Aryaan','Harsh','Aryaan'],
+  ['11-01-2026','Kunal','Aagam','Kunal'],['18-01-2026','Soham','Kabir','Soham'],
+  ['25-01-2026','Shanay','Dev','Shanay'],['01-02-2026','Rudransh','Kunal','Kunal'],
+  ['15-02-2026','Kabir','Rudransh','Kabir'],['01-03-2026','Parth','Vihaan','Vihaan'],
+  ['08-03-2026','Shanay','Kunal','Shanay'],['22-03-2026','Rudransh','Jeneel','Rudransh'],
+  ['29-03-2026','Kabir','Soham','Kabir'],['05-04-2026','Vedant','Kunal','Vedant'],
+  ['19-04-2026','Rudransh','Dev','Rudransh'],['03-05-2026','Aagam','Sam','Sam']
+].map(r => ({date: r[0], cap1: r[1], cap2: r[2], winner: r[3]}));
+
+const state = {
+  mode: 'general',
+  scheme: 'equal',
+  generalLists: load(STORAGE.GENERAL_LISTS, []),
+  activeListId: load(STORAGE.GENERAL_ACTIVE, null),
+  captainLog: load(STORAGE.CAPTAIN_LOG, []),
+  lastCaptainPick: null,
+  lastGeneralPick: null,
+};
+
+function load(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch { return fallback; }
+}
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+function weightedPick(options, weights) {
+  const total = weights.reduce((a,b) => a+b, 0);
+  if (total === 0) return options[Math.floor(Math.random() * options.length)];
+  let r = Math.random() * total;
+  for (let i = 0; i < options.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return options[i];
+  }
+  return options[options.length - 1];
+}
+function inverseWeight(count) { return 1 / (count + 1); }
+
+function parseLines(text) {
+  const seen = new Set();
+  return text.split('\n').map(s => s.trim()).filter(Boolean).filter(s => {
+    const k = s.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true;
+  });
+}
+
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s) { return escapeHtml(s); }
+
+function applyTheme(mode) {
+  document.body.classList.remove('theme-general', 'theme-captain');
+  document.body.classList.add(mode === 'captain' ? 'theme-captain' : 'theme-general');
+  renderBrandAndLedes();
+}
+
+function renderBrandAndLedes() {
+  if (state.mode === 'general') {
+    document.getElementById('brand-mark').textContent = 'Tombola';
+    document.getElementById('brand-tag').textContent = 'a picker';
+  } else {
+    document.getElementById('brand-mark').textContent = 'CAPTAIN';
+    document.getElementById('brand-tag').textContent = 'sunday squad';
+  }
+  document.getElementById('g-lede').innerHTML =
+    `Pick something <span class="accent">at random</span>. Or fairly, over time.`;
+  document.getElementById('c-lede').innerHTML =
+    `Two captains, chosen <span class="accent">fairly over time</span>.`;
+}
+
+function getActiveList() { return state.generalLists.find(l => l.id === state.activeListId) || null; }
+function getOptions() { return parseLines(document.getElementById('g-options').value); }
+
+function unlockSteps() {
+  const opts = getOptions();
+  const s1Hint = document.getElementById('g-step-1-hint');
+  const s2 = document.getElementById('g-step-2');
+  const s3 = document.getElementById('g-step-3');
+  const s2Hint = document.getElementById('g-step-2-hint');
+
+  if (opts.length >= 2) {
+    s1Hint.textContent = `${opts.length} options`;
+    if (s2.classList.contains('locked')) {
+      s2.classList.remove('locked');
+      s2.classList.add('revealing');
+    }
+    s3.classList.remove('locked');
+  } else {
+    s1Hint.textContent = opts.length === 1 ? 'add at least 2' : '';
+    s2.classList.add('locked');
+    s3.classList.add('locked');
+  }
+  s2Hint.textContent = state.scheme === 'equal' ? 'equal' : state.scheme === 'manual' ? 'manual' : 'fair-rotation';
+}
+
+function setScheme(scheme) {
+  state.scheme = scheme;
+  document.querySelectorAll('.scheme-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.scheme === scheme);
+  });
+  renderSchemeInfo();
+  document.getElementById('g-manual-block').hidden = scheme !== 'manual';
+  if (scheme === 'manual') renderManualInputs();
+
+  const list = getActiveList();
+  document.getElementById('g-exclude-wrap').hidden = !(scheme === 'fair' && list);
+  document.getElementById('g-fair-readout-wrap').hidden = !(scheme === 'fair' && list);
+  if (scheme === 'fair' && list) renderFairReadout();
+
+  document.getElementById('g-active-list-bar').hidden = !(scheme === 'fair' && list);
+  if (scheme === 'fair' && list) renderActiveListBar();
+
+  updatePickMeta();
+  unlockSteps();
+}
+
+function renderSchemeInfo() {
+  const info = document.getElementById('g-scheme-info');
+  const list = getActiveList();
+  if (state.scheme === 'equal') {
+    info.innerHTML = `<strong>Equal:</strong> every option has the same chance. No memory, no setup. Pure random.`;
+  } else if (state.scheme === 'manual') {
+    info.innerHTML = `<strong>Manual:</strong> set a weight for each option below. Higher numbers = more likely to be picked.`;
+  } else {
+    if (list) {
+      info.innerHTML = `<strong>Fair-rotation</strong> picks what you've chosen least, using <strong>${escapeHtml(list.name)}</strong>'s history. You'll be asked whether to log each pick.`;
+    } else {
+      info.innerHTML = `<strong>Fair-rotation</strong> picks what you've chosen least over time. Needs a saved list to remember history. <button class="save-inline" id="g-save-inline">Save this list →</button>`;
+      setTimeout(() => {
+        const btn = document.getElementById('g-save-inline');
+        if (btn) btn.addEventListener('click', openSaveModal);
+      }, 0);
+    }
+  }
+}
+
+function renderManualInputs() {
+  const wrap = document.getElementById('g-manual-inputs');
+  const opts = getOptions();
+  if (opts.length === 0) { wrap.innerHTML = '<div class="empty-state">add options first</div>'; return; }
+  wrap.innerHTML = opts.map(opt => `
+    <div class="manual-row">
+      <span class="name">${escapeHtml(opt)}</span>
+      <input type="number" data-manual="${escapeAttr(opt)}" value="1" min="0" step="0.1">
+    </div>`).join('');
+  wrap.querySelectorAll('input').forEach(i => i.addEventListener('input', updatePickMeta));
+}
+
+function renderActiveListBar() {
+  const wrap = document.getElementById('g-active-list-bar');
+  const list = getActiveList();
+  if (!list || state.scheme !== 'fair') { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  wrap.innerHTML = `
+    <div class="active-list-bar">
+      <span>Using list: <strong>${escapeHtml(list.name)}</strong></span>
+      <span class="spacer"></span>
+      <button class="ghost" id="g-deactivate-list">stop using this list</button>
+    </div>`;
+  document.getElementById('g-deactivate-list').addEventListener('click', deactivateList);
+}
+
+function renderFairReadout() {
+  const wrap = document.getElementById('g-fair-readout');
+  const list = getActiveList();
+  if (!list) return;
+  const opts = getOptions();
+  if (opts.length === 0) { wrap.innerHTML = '<div class="empty-state">add options first</div>'; return; }
+  const history = list.history || {};
+  const lastPicked = list.lastPicked;
+  const excludeLast = document.getElementById('g-exclude-last')?.checked;
+  const rawWeights = opts.map(opt => inverseWeight(history[opt.toLowerCase()] || 0));
+  let effective = opts.map((opt, i) => {
+    const blocked = excludeLast && lastPicked === opt.toLowerCase();
+    return blocked ? 0 : rawWeights[i];
+  });
+  const total = effective.reduce((a,b) => a+b, 0) || 1;
+  const rows = opts.map((opt, i) => {
+    const count = history[opt.toLowerCase()] || 0;
+    const blocked = excludeLast && lastPicked === opt.toLowerCase();
+    const pct = blocked ? 0 : (effective[i] / total) * 100;
+    return { opt, count, blocked, pct };
+  });
+  wrap.innerHTML = `
+    <div class="weights-title">Current chances</div>
+    ${rows.map(r => `
+      <div class="weights-row ${r.blocked ? 'blocked' : ''}">
+        <span class="name">${escapeHtml(r.opt)}</span>
+        <span><span style="color:var(--ink-mute);margin-right:12px;">${r.count}× picked</span><span class="w">${r.pct.toFixed(1)}%</span></span>
+      </div>`).join('')}`;
+}
+
+function updatePickMeta() {
+  const meta = document.getElementById('g-pick-meta');
+  const opts = getOptions();
+  if (opts.length < 2) { meta.textContent = ''; return; }
+  const list = getActiveList();
+  let label;
+  if (state.scheme === 'fair' && list) label = `fair-rotation · ${list.name}`;
+  else if (state.scheme === 'fair') label = 'fair-rotation (save a list first)';
+  else if (state.scheme === 'manual') label = 'manual weights';
+  else label = 'equal random';
+  meta.textContent = `${opts.length} options · ${label}`;
+}
+
+function computeWeightsFor(pool) {
+  if (state.scheme === 'equal') return pool.map(() => 1);
+  if (state.scheme === 'manual') {
+    return pool.map(opt => {
+      const el = document.querySelector(`input[data-manual="${escapeAttr(opt)}"]`);
+      const v = el ? parseFloat(el.value) : 1;
+      return isNaN(v) || v < 0 ? 0 : v;
+    });
+  }
+  const list = getActiveList();
+  if (!list) return pool.map(() => 1);
+  const history = list.history || {};
+  return pool.map(opt => inverseWeight(history[opt.toLowerCase()] || 0));
+}
+
+function pickGeneral() {
+  const opts = getOptions();
+  if (opts.length < 2) return;
+  let pool = opts.slice();
+  const list = getActiveList();
+  const excludeLast = document.getElementById('g-exclude-last')?.checked;
+  if (state.scheme === 'fair' && list && excludeLast && list.lastPicked) {
+    pool = pool.filter(o => o.toLowerCase() !== list.lastPicked);
+    if (pool.length < 1) pool = opts.slice();
+  }
+  const weights = computeWeightsFor(pool);
+  const picked = weightedPick(pool, weights);
+  state.lastGeneralPick = picked;
+  renderGeneralReveal(picked, opts);
+}
+
+function renderGeneralReveal(picked, allOpts) {
+  const wrap = document.getElementById('g-reveal-wrap');
+  const list = getActiveList();
+  const showLog = state.scheme === 'fair' && list;
+  wrap.innerHTML = `
+    <div class="reveal fade-in">
+      <div class="reveal-label">Picked</div>
+      <div class="reveal-name shuffling" id="g-reveal-name">—</div>
+      <div class="reveal-actions" id="g-reveal-actions" hidden>
+        ${showLog ? '<button class="secondary" id="g-log-pick-btn">Log this pick</button>' : ''}
+        <button class="ghost" id="g-pick-again">pick again</button>
+      </div>
+    </div>`;
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  shuffleReveal(document.getElementById('g-reveal-name'), picked, allOpts, () => {
+    document.getElementById('g-reveal-actions').hidden = false;
+    document.getElementById('g-pick-again').addEventListener('click', pickGeneral);
+    if (showLog) {
+      document.getElementById('g-log-pick-btn').addEventListener('click', openLogPickModal);
+    }
+  });
+}
+
+function shuffleReveal(el, finalName, pool, done) {
+  let count = 0;
+  const total = 12;
+  const tick = () => {
+    if (count >= total) {
+      el.textContent = finalName;
+      el.classList.remove('shuffling');
+      done?.();
+      return;
+    }
+    el.textContent = pool[Math.floor(Math.random() * pool.length)] || finalName;
+    count++;
+    setTimeout(tick, 45 + count * 9);
+  };
+  tick();
+}
+
+function openLogPickModal() {
+  const list = getActiveList();
+  if (!list || !state.lastGeneralPick) return;
+  document.getElementById('log-pick-text').innerHTML =
+    `Add <strong>${escapeHtml(state.lastGeneralPick)}</strong> to <strong>${escapeHtml(list.name)}</strong>'s history? This affects future picks.`;
+  document.getElementById('log-pick-modal').classList.add('open');
+}
+
+function confirmLogPick() {
+  const list = getActiveList();
+  if (!list || !state.lastGeneralPick) return;
+  const key = state.lastGeneralPick.toLowerCase();
+  list.history = list.history || {};
+  list.history[key] = (list.history[key] || 0) + 1;
+  list.lastPicked = key;
+  list.options = getOptions();
+  save(STORAGE.GENERAL_LISTS, state.generalLists);
+  document.getElementById('log-pick-modal').classList.remove('open');
+  renderSavedLists();
+  renderFairReadout();
+  document.getElementById('g-log-pick-btn')?.remove();
+}
+
+function openSaveModal() {
+  document.getElementById('save-name').value = '';
+  document.getElementById('save-error').textContent = '';
+  document.getElementById('save-modal').classList.add('open');
+  setTimeout(() => document.getElementById('save-name').focus(), 50);
+}
+
+function confirmSaveList() {
+  const name = document.getElementById('save-name').value;
+  const opts = getOptions();
+  const err = document.getElementById('save-error');
+  if (opts.length < 2) { err.textContent = 'need at least 2 options'; return; }
+  if (!name.trim()) { err.textContent = 'name required'; return; }
+  if (state.generalLists.some(l => l.name.toLowerCase() === name.trim().toLowerCase())) {
+    err.textContent = 'name already used'; return;
+  }
+  const list = {
+    id: 'list_' + Date.now(),
+    name: name.trim(),
+    options: opts,
+    history: {},
+    lastPicked: null,
+    createdAt: new Date().toISOString()
+  };
+  state.generalLists.push(list);
+  state.activeListId = list.id;
+  save(STORAGE.GENERAL_LISTS, state.generalLists);
+  save(STORAGE.GENERAL_ACTIVE, state.activeListId);
+  document.getElementById('save-modal').classList.remove('open');
+  setScheme('fair');
+  renderSavedLists();
+}
+
+function loadList(id) {
+  const list = state.generalLists.find(l => l.id === id);
+  if (!list) return;
+  state.activeListId = id;
+  save(STORAGE.GENERAL_ACTIVE, id);
+  document.getElementById('g-options').value = list.options.join('\n');
+  setScheme('fair');
+  renderSavedLists();
+  unlockSteps();
+  document.getElementById('g-step-2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function deactivateList() {
+  state.activeListId = null;
+  save(STORAGE.GENERAL_ACTIVE, null);
+  renderSavedLists();
+  renderSchemeInfo();
+  document.getElementById('g-fair-readout-wrap').hidden = true;
+  document.getElementById('g-exclude-wrap').hidden = true;
+  document.getElementById('g-active-list-bar').hidden = true;
+  updatePickMeta();
+}
+
+function deleteList(id, e) {
+  e?.stopPropagation();
+  if (!confirm('Delete this saved list? This clears its history.')) return;
+  state.generalLists = state.generalLists.filter(l => l.id !== id);
+  if (state.activeListId === id) {
+    state.activeListId = null;
+    save(STORAGE.GENERAL_ACTIVE, null);
+  }
+  save(STORAGE.GENERAL_LISTS, state.generalLists);
+  renderSavedLists();
+  if (state.scheme === 'fair') {
+    renderSchemeInfo();
+    document.getElementById('g-fair-readout-wrap').hidden = true;
+    document.getElementById('g-exclude-wrap').hidden = true;
+    document.getElementById('g-active-list-bar').hidden = true;
+  }
+  updatePickMeta();
+}
+
+function renderSavedLists() {
+  const section = document.getElementById('g-saved-section');
+  const wrap = document.getElementById('g-saved-lists');
+  const count = document.getElementById('g-saved-count');
+  if (state.generalLists.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  count.textContent = state.generalLists.length;
+  wrap.innerHTML = state.generalLists.map(l => {
+    const totalPicks = Object.values(l.history || {}).reduce((a,b)=>a+b,0);
+    const active = state.activeListId === l.id;
+    return `<div class="saved-list-item ${active ? 'active' : ''}" data-load="${l.id}">
+      <span class="name">${escapeHtml(l.name)}</span>
+      <span class="meta">${l.options.length} options · ${totalPicks} pick${totalPicks === 1 ? '' : 's'}</span>
+      <span class="actions">
+        <button class="ghost" data-delete="${l.id}">delete</button>
+      </span>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-load]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.dataset.delete) return;
+      loadList(el.dataset.load);
+    });
+  });
+  wrap.querySelectorAll('[data-delete]').forEach(b => {
+    b.addEventListener('click', (e) => deleteList(b.dataset.delete, e));
+  });
+}
+
+// ============================================================
+// CAPTAIN MODE
+// ============================================================
+function isGK(name) { return /\(gk\)/i.test(name); }
+function cleanName(name) { return name.replace(/\(gk\)/gi, '').trim(); }
+
+function captainHistory() {
+  const h = {};
+  for (const row of state.captainLog) {
+    for (const cap of [row.cap1, row.cap2]) {
+      const k = cap.toLowerCase();
+      h[k] = (h[k] || 0) + 1;
+    }
+  }
+  return h;
+}
+
+function lastSessionCaptains() {
+  if (state.captainLog.length === 0) return new Set();
+  const last = state.captainLog[state.captainLog.length - 1];
+  return new Set([last.cap1.toLowerCase(), last.cap2.toLowerCase()]);
+}
+
+function unlockCaptainSteps() {
+  const players = parseLines(document.getElementById('c-players').value);
+  const s1Hint = document.getElementById('c-step-1-hint');
+  const s2 = document.getElementById('c-step-2');
+  const s3 = document.getElementById('c-step-3');
+  const s2Hint = document.getElementById('c-step-2-hint');
+
+  if (players.length >= 2) {
+    s1Hint.textContent = `${players.length} players`;
+    if (s2.classList.contains('locked')) {
+      s2.classList.remove('locked');
+      s2.classList.add('revealing');
+    }
+    s3.classList.remove('locked');
+    const last = lastSessionCaptains();
+    const excludeOn = document.getElementById('c-exclude-last')?.checked;
+    const blocked = excludeOn ? players.filter(p => last.has(cleanName(p).toLowerCase())).length : 0;
+    s2Hint.textContent = blocked > 0 ? `${blocked} blocked from last week` : '';
+  } else {
+    s1Hint.textContent = players.length === 1 ? 'add at least 2' : '';
+    s2.classList.add('locked');
+    s3.classList.add('locked');
+  }
+}
+
+function renderCaptainContext() {
+  const players = parseLines(document.getElementById('c-players').value);
+  const out = document.getElementById('c-context');
+  if (players.length < 2) { out.innerHTML = '<div class="empty-state">add players first</div>'; return; }
+  const history = captainHistory();
+  const last = lastSessionCaptains();
+  const excludeOn = document.getElementById('c-exclude-last')?.checked;
+  const rows = players.map(p => {
+    const clean = cleanName(p).toLowerCase();
+    const count = history[clean] || 0;
+    return { p, clean, count, weight: inverseWeight(count), blocked: excludeOn && last.has(clean), gk: isGK(p) };
+  }).sort((a, b) => a.weight - b.weight);
+  out.innerHTML = rows.map(r => `
+    <div class="weights-row ${r.blocked ? 'blocked' : ''}">
+      <span class="name">${escapeHtml(cleanName(r.p))}${r.gk ? '<span class="gk-tag">GK</span>' : ''}</span>
+      <span><span style="color:var(--ink-mute);margin-right:14px;">cap ${r.count}×</span><span class="w">${r.weight.toFixed(2)}</span></span>
+    </div>`).join('');
+}
+
+function pickCaptainsLogic(players, excludeLast) {
+  const last = excludeLast ? lastSessionCaptains() : new Set();
+  const history = captainHistory();
+  let eligible = players.filter(p => !last.has(cleanName(p).toLowerCase()));
+  if (eligible.length < 2) eligible = players.slice();
+  const weightFor = p => inverseWeight(history[cleanName(p).toLowerCase()] || 0);
+  let cap1 = weightedPick(eligible, eligible.map(weightFor));
+  let pool;
+  if (isGK(cap1)) {
+    const otherGks = eligible.filter(p => p !== cap1 && isGK(p));
+    if (otherGks.length === 0) {
+      const outfield = eligible.filter(p => !isGK(p));
+      if (outfield.length < 2) throw new Error('not enough outfield players');
+      cap1 = weightedPick(outfield, outfield.map(weightFor));
+      pool = outfield.filter(p => p !== cap1);
+    } else { pool = otherGks; }
+  } else {
+    pool = eligible.filter(p => p !== cap1 && !isGK(p));
+    if (pool.length === 0) throw new Error('not enough outfield players');
+  }
+  const cap2 = weightedPick(pool, pool.map(weightFor));
+  return { cap1, cap2 };
+}
+
+function pickCaptains() {
+  const players = parseLines(document.getElementById('c-players').value);
+  if (players.length < 2) return;
+  const excludeLast = document.getElementById('c-exclude-last')?.checked;
+  let picked;
+  try { picked = pickCaptainsLogic(players, excludeLast); }
+  catch (e) { alert(e.message); return; }
+  state.lastCaptainPick = picked;
+  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  renderCaptainReveal(picked.cap1, picked.cap2);
+}
+
+function renderCaptainReveal(cap1, cap2) {
+  const wrap = document.getElementById('c-reveal-wrap');
+  const c1 = cleanName(cap1);
+  const c2 = cleanName(cap2);
+  wrap.innerHTML = `
+    <div class="reveal fade-in">
+      <div class="reveal-label">Today's captains</div>
+      <div class="reveal-pair">
+        <div class="reveal-name shuffling" id="cap1-name">—</div>
+        <div class="reveal-conj">and</div>
+        <div class="reveal-name shuffling" id="cap2-name">—</div>
+      </div>
+      <div class="reveal-actions" id="c-actions" hidden>
+        <button class="secondary" id="c-toss-btn">flip coin</button>
+        <button class="secondary" id="c-log-btn">log session</button>
+        <button class="ghost" id="c-pick-again">pick again</button>
+      </div>
+      <div id="c-coin-stage"></div>
+    </div>`;
+  setTimeout(() => wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+  const pool = parseLines(document.getElementById('c-players').value).map(cleanName);
+  shuffleNameEl(document.getElementById('cap1-name'), c1, pool);
+  setTimeout(() => shuffleNameEl(document.getElementById('cap2-name'), c2, pool, () => {
+    document.getElementById('c-actions').hidden = false;
+    document.getElementById('c-toss-btn').addEventListener('click', () => doCoinToss(c1, c2));
+    document.getElementById('c-log-btn').addEventListener('click', openLogModal);
+    document.getElementById('c-pick-again').addEventListener('click', pickCaptains);
+  }), 200);
+}
+
+function shuffleNameEl(el, finalName, pool, done) {
+  let count = 0;
+  const total = 12;
+  const tick = () => {
+    if (count >= total) {
+      el.textContent = finalName;
+      el.classList.remove('shuffling');
+      done?.();
+      return;
+    }
+    el.textContent = pool[Math.floor(Math.random() * pool.length)] || finalName;
+    count++;
+    setTimeout(tick, 50 + count * 6);
+  };
+  tick();
+}
+
+function doCoinToss(c1, c2) {
+  const stage = document.getElementById('c-coin-stage');
+  const winner = Math.random() < 0.5 ? c1 : c2;
+  const isHeads = winner === c1;
+  stage.innerHTML = `
+    <div class="coin-stage">
+      <div class="coin flipping ${isHeads ? '' : 'result-tails'}" id="coin">
+        <div class="coin-inner">
+          <div class="coin-face heads"><span class="label">${escapeHtml(c1)}</span></div>
+          <div class="coin-face tails"><span class="label">${escapeHtml(c2)}</span></div>
+        </div>
+      </div>
+      <div class="toss-result" id="toss-result">flipping...</div>
+    </div>`;
+  setTimeout(() => {
+    document.getElementById('toss-result').innerHTML =
+      `picks first: <span class="name">${escapeHtml(winner)}</span>`;
+    state.lastCaptainPick.winner = winner;
+  }, 2300);
+}
+
+function openLogModal() {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  document.getElementById('log-date').value = `${dd}-${mm}-${today.getFullYear()}`;
+  document.getElementById('log-error').textContent = '';
+  document.getElementById('log-modal').classList.add('open');
+}
+
+function confirmLog() {
+  const date = document.getElementById('log-date').value.trim();
+  const err = document.getElementById('log-error');
+  if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) { err.textContent = 'format must be dd-mm-yyyy'; return; }
+  const [d, m, y] = date.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  if (dt.getDate() !== d || dt.getMonth() !== m - 1) { err.textContent = 'not a valid date'; return; }
+  const pick = state.lastCaptainPick;
+  if (!pick) return;
+  const winner = pick.winner || pick.cap1;
+  state.captainLog.push({
+    date, cap1: cleanName(pick.cap1), cap2: cleanName(pick.cap2), winner: cleanName(winner)
+  });
+  save(STORAGE.CAPTAIN_LOG, state.captainLog);
+  document.getElementById('log-modal').classList.remove('open');
+  renderCaptainLog();
+  renderCaptainContext();
+}
+
+function renderCaptainLog() {
+  const section = document.getElementById('c-log-section');
+  const count = state.captainLog.length;
+  if (count === 0) { section.hidden = true; return; }
+  section.hidden = false;
+  document.getElementById('c-log-count').textContent = count;
+  const body = document.getElementById('c-log-body');
+  const recent = state.captainLog.slice().reverse().slice(0, 15);
+  body.innerHTML = recent.map(r => `<tr>
+    <td>${escapeHtml(r.date)}</td>
+    <td>${escapeHtml(r.cap1)}</td>
+    <td>${escapeHtml(r.cap2)}</td>
+    <td class="toss-win">${escapeHtml(r.winner)}</td>
+  </tr>`).join('');
+}
+
+function loadDemo() {
+  if (state.captainLog.length > 0) {
+    if (!confirm('this will replace your current captain log with demo data. continue?')) return;
+  }
+  state.captainLog = DEMO_LOG.slice();
+  save(STORAGE.CAPTAIN_LOG, state.captainLog);
+  document.getElementById('c-players').value = [
+    'kabir','dev','parth','soham','kunal','aagam','tanish','jeneel','aryaan',
+    'rudransh','shanay','vedant','vihaan','harsh','maddy','sahil','sam','deep','ronak (gk)'
+  ].join('\n');
+  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  renderCaptainLog();
+  renderCaptainContext();
+  unlockCaptainSteps();
+}
+
+function openInfo() {
+  const title = document.getElementById('info-title');
+  const body = document.getElementById('info-body');
+  if (state.mode === 'general') {
+    title.textContent = 'What is Tombola?';
+    body.innerHTML = `
+      <p>A picker. Three modes for three situations.</p>
+      <p>• <strong>Equal</strong> - true random, every option has the same chance.<br>
+         • <strong>Manual</strong> - set your own weights per option.<br>
+         • <strong>Fair-rotation</strong> - picks what you've chosen <em>least</em> over time. Save a list and it remembers.</p>
+      <p>Save a list when picking from the same options often. Otherwise just paste, pick, done.</p>`;
+  } else {
+    title.textContent = 'How captain mode works';
+    body.innerHTML = `
+      <p>For weekly football (or any recurring group sport) where two captains pick teams.</p>
+      <p>The algorithm:</p>
+      <p>• Whoever's captained least is most likely to be picked.<br>
+         • Last week's captains can be excluded (on by default).<br>
+         • Goalkeepers pair with goalkeepers - tag with <code>(gk)</code>.<br>
+         • Coin toss decides who picks first.</p>
+      <p>Log each session to feed history into future picks.</p>`;
+  }
+  document.getElementById('info-modal').classList.add('open');
+}
+
+function switchMode(mode) {
+  state.mode = mode;
+  document.querySelectorAll('nav.modes button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('general-mode').hidden = mode !== 'general';
+  document.getElementById('captain-mode').hidden = mode !== 'captain';
+  applyTheme(mode);
+}
+
+document.querySelectorAll('nav.modes button').forEach(b => {
+  b.addEventListener('click', () => switchMode(b.dataset.mode));
+});
+
+document.querySelectorAll('.scheme-card').forEach(card => {
+  card.addEventListener('click', () => setScheme(card.dataset.scheme));
+});
+
+document.getElementById('g-options').addEventListener('input', () => {
+  unlockSteps();
+  if (state.scheme === 'manual') renderManualInputs();
+  if (state.scheme === 'fair' && getActiveList()) renderFairReadout();
+  updatePickMeta();
+});
+document.getElementById('g-exclude-last').addEventListener('change', () => {
+  if (state.scheme === 'fair' && getActiveList()) renderFairReadout();
+});
+document.getElementById('g-pick-btn').addEventListener('click', pickGeneral);
+document.getElementById('save-confirm').addEventListener('click', confirmSaveList);
+document.getElementById('log-pick-confirm').addEventListener('click', confirmLogPick);
+
+document.getElementById('c-players').addEventListener('input', () => {
+  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  renderCaptainContext();
+  unlockCaptainSteps();
+});
+document.getElementById('c-exclude-last').addEventListener('change', () => {
+  renderCaptainContext();
+  unlockCaptainSteps();
+});
+document.getElementById('c-pick-btn').addEventListener('click', pickCaptains);
+document.getElementById('c-demo-btn').addEventListener('click', loadDemo);
+document.getElementById('log-confirm').addEventListener('click', confirmLog);
+
+document.getElementById('info-btn').addEventListener('click', openInfo);
+
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => {
+  b.closest('.modal-bg').classList.remove('open');
+}));
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click', e => {
+  if (e.target === bg) bg.classList.remove('open');
+}));
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  if (!confirm('clear all saved data?')) return;
+  Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
+  location.reload();
+});
+
+document.getElementById('save-name').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('save-confirm').click();
+});
+document.getElementById('log-date').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('log-confirm').click();
+});
+
+function init() {
+  applyTheme('general');
+  renderSavedLists();
+  const savedPlayers = load(STORAGE.CAPTAIN_PLAYERS, '');
+  if (savedPlayers) document.getElementById('c-players').value = savedPlayers;
+  renderCaptainContext();
+  renderCaptainLog();
+  unlockCaptainSteps();
+  const active = getActiveList();
+  if (active) {
+    document.getElementById('g-options').value = active.options.join('\n');
+    setScheme('fair');
+  } else {
+    setScheme('equal');
+  }
+  unlockSteps();
+  updatePickMeta();
+}
+init();
+</script>
+</body>
+</html>
