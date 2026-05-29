@@ -7,6 +7,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..900,0..100&family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+<script defer src="/_vercel/insights/script.js"></script>
+<script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    window.supabase = createClient(
+      'https://dhvzjpwhvmuairwppfkc.supabase.co',
+      'sb_publishable_99xAflG1rM5gCVvpxbZ2Ug__3bcM5tH'
+    );
+</script>
+
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { min-height: 100vh; -webkit-font-smoothing: antialiased; }
@@ -1025,6 +1034,69 @@
   }
 
   /* ================================================================
+     AUTH BAR
+  ================================================================ */
+  .auth-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    margin-bottom: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-mute);
+  }
+  .theme-general .auth-bar {
+    background: var(--bg-paper);
+    border: 1px solid var(--rule);
+  }
+  .theme-captain .auth-bar {
+    background: rgba(0,0,0,0.15);
+    border: 1px dashed var(--rule);
+  }
+  .auth-bar .spacer { flex: 1; }
+  .auth-bar .status-text { color: var(--ink); }
+  .auth-bar .email { color: var(--accent); font-weight: 500; }
+  .auth-bar .msg { color: var(--ink); }
+  .auth-bar input[type="email"] {
+    width: 200px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .theme-general .auth-bar input[type="email"] {
+    border: 1px solid var(--ink);
+    background: var(--bg);
+  }
+  .theme-captain .auth-bar input[type="email"] {
+    border: 1px dashed var(--rule);
+    background: rgba(0,0,0,0.15);
+    color: var(--ink);
+  }
+  .auth-bar button {
+    padding: 7px 14px;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: all 120ms ease;
+  }
+  .theme-general .auth-bar button {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .theme-general .auth-bar button:hover { background: var(--accent); }
+  .theme-captain .auth-bar button {
+    background: var(--accent);
+    color: var(--bg);
+    border: 1px solid var(--ink);
+  }
+  .theme-captain .auth-bar button:hover { background: var(--ink); color: var(--accent); }
+
+  /* ================================================================
      FOOTER
   ================================================================ */
   footer.note {
@@ -1096,6 +1168,8 @@
     </div>
     <button class="info-link" id="info-btn">What is this?</button>
   </header>
+
+  <div class="auth-bar" id="auth-bar" hidden></div>
 
   <nav class="modes" role="tablist">
     <button data-mode="general" class="active">general</button>
@@ -1330,18 +1404,187 @@ const DEMO_LOG = [
 const state = {
   mode: 'general',
   scheme: 'equal',
-  generalLists: load(STORAGE.GENERAL_LISTS, []),
-  activeListId: load(STORAGE.GENERAL_ACTIVE, null),
-  captainLog: load(STORAGE.CAPTAIN_LOG, []),
+  generalLists: [],
+  activeListId: null,
+  captainLog: [],
+  captainPlayersText: '',
   lastCaptainPick: null,
   lastGeneralPick: null,
 };
+
+let currentUser = null;
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
   catch { return fallback; }
 }
 function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+// ============================================================
+// AUTH
+// ============================================================
+async function initAuth() {
+  const { data: { user } } = await supabase.auth.getUser();
+  currentUser = user;
+  updateAuthUI();
+  await loadDataForUser();
+}
+
+function updateAuthUI() {
+  const bar = document.getElementById('auth-bar');
+  bar.hidden = false;
+  if (currentUser) {
+    bar.innerHTML = `
+      <span class="status-text">signed in as <span class="email">${escapeHtml(currentUser.email)}</span></span>
+      <span class="spacer"></span>
+      <button id="auth-signout">sign out</button>`;
+    document.getElementById('auth-signout').addEventListener('click', signOut);
+  } else {
+    bar.innerHTML = `
+      <span class="status-text">sign in to save your lists &amp; history</span>
+      <span class="spacer"></span>
+      <input type="email" id="auth-email" placeholder="your@email.com">
+      <button id="auth-submit">send link</button>`;
+    document.getElementById('auth-submit').addEventListener('click', () => {
+      signIn(document.getElementById('auth-email').value.trim());
+    });
+    document.getElementById('auth-email').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('auth-submit').click();
+    });
+  }
+}
+
+async function signIn(email) {
+  if (!email || !email.includes('@')) {
+    showAuthMessage('enter a valid email', true);
+    setTimeout(updateAuthUI, 2200);
+    return;
+  }
+  showAuthMessage('sending...');
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.href }
+  });
+  if (error) {
+    showAuthMessage(error.message, true);
+    setTimeout(updateAuthUI, 3500);
+  } else {
+    const bar = document.getElementById('auth-bar');
+    bar.innerHTML = `<span class="msg">✓ sign-in link sent to <span class="email">${escapeHtml(email)}</span> - check your email</span>`;
+  }
+}
+
+async function signOut() {
+  await supabase.auth.signOut();
+  localStorage.removeItem(STORAGE.GENERAL_ACTIVE);
+  location.reload();
+}
+
+function showAuthMessage(msg, isError) {
+  const bar = document.getElementById('auth-bar');
+  bar.innerHTML = `<span class="msg" style="color: ${isError ? 'var(--accent)' : 'var(--ink)'};">${escapeHtml(msg)}</span>`;
+}
+
+// ============================================================
+// PERSISTENCE - routes to Supabase if signed in, localStorage if not
+// ============================================================
+async function loadDataForUser() {
+  state.activeListId = load(STORAGE.GENERAL_ACTIVE, null);
+  if (currentUser) {
+    try {
+      const [listsRes, captainLogRes, captainPlayersRes] = await Promise.all([
+        supabase.from('tombola_lists').select('*').order('created_at', { ascending: true }),
+        supabase.from('tombola_captain_log').select('*').order('created_at', { ascending: true }),
+        supabase.from('tombola_captain_players').select('*').eq('user_id', currentUser.id).maybeSingle()
+      ]);
+      state.generalLists = (listsRes.data || []).map(r => ({
+        id: r.id, name: r.name, options: r.options, history: r.history,
+        lastPicked: r.last_picked, createdAt: r.created_at
+      }));
+      state.captainLog = (captainLogRes.data || []).map(r => ({
+        date: r.date, cap1: r.cap1, cap2: r.cap2, winner: r.winner
+      }));
+      state.captainPlayersText = captainPlayersRes.data?.players_text || '';
+    } catch (e) {
+      console.error('failed to load from supabase', e);
+    }
+  } else {
+    state.generalLists = load(STORAGE.GENERAL_LISTS, []);
+    state.captainLog = load(STORAGE.CAPTAIN_LOG, []);
+    state.captainPlayersText = load(STORAGE.CAPTAIN_PLAYERS, '');
+  }
+}
+
+async function persistList(list) {
+  if (currentUser) {
+    try {
+      await supabase.from('tombola_lists').upsert({
+        id: list.id, user_id: currentUser.id,
+        name: list.name, options: list.options, history: list.history,
+        last_picked: list.lastPicked, updated_at: new Date().toISOString()
+      });
+    } catch (e) { console.error('persistList failed', e); }
+  } else {
+    save(STORAGE.GENERAL_LISTS, state.generalLists);
+  }
+}
+
+async function deleteListRemote(id) {
+  if (currentUser) {
+    try { await supabase.from('tombola_lists').delete().eq('id', id); }
+    catch (e) { console.error('deleteList failed', e); }
+  } else {
+    save(STORAGE.GENERAL_LISTS, state.generalLists);
+  }
+}
+
+function persistActiveId() {
+  if (state.activeListId) save(STORAGE.GENERAL_ACTIVE, state.activeListId);
+  else localStorage.removeItem(STORAGE.GENERAL_ACTIVE);
+}
+
+async function appendCaptainLog(row) {
+  if (currentUser) {
+    try {
+      await supabase.from('tombola_captain_log').insert({ user_id: currentUser.id, ...row });
+    } catch (e) { console.error('appendCaptainLog failed', e); }
+  } else {
+    save(STORAGE.CAPTAIN_LOG, state.captainLog);
+  }
+}
+
+async function replaceCaptainLog(newRows) {
+  if (currentUser) {
+    try {
+      await supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id);
+      if (newRows.length) {
+        await supabase.from('tombola_captain_log').insert(
+          newRows.map(r => ({ user_id: currentUser.id, ...r }))
+        );
+      }
+    } catch (e) { console.error('replaceCaptainLog failed', e); }
+  } else {
+    save(STORAGE.CAPTAIN_LOG, state.captainLog);
+  }
+}
+
+let _persistPlayersTimer = null;
+function persistCaptainPlayers(text) {
+  state.captainPlayersText = text;
+  if (currentUser) {
+    clearTimeout(_persistPlayersTimer);
+    _persistPlayersTimer = setTimeout(async () => {
+      try {
+        await supabase.from('tombola_captain_players').upsert({
+          user_id: currentUser.id, players_text: text,
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) { console.error('persistCaptainPlayers failed', e); }
+    }, 600);
+  } else {
+    save(STORAGE.CAPTAIN_PLAYERS, text);
+  }
+}
 
 function weightedPick(options, weights) {
   const total = weights.reduce((a,b) => a+b, 0);
@@ -1607,7 +1850,7 @@ function confirmLogPick() {
   list.history[key] = (list.history[key] || 0) + 1;
   list.lastPicked = key;
   list.options = getOptions();
-  save(STORAGE.GENERAL_LISTS, state.generalLists);
+  persistList(list);
   document.getElementById('log-pick-modal').classList.remove('open');
   renderSavedLists();
   renderFairReadout();
@@ -1640,8 +1883,8 @@ function confirmSaveList() {
   };
   state.generalLists.push(list);
   state.activeListId = list.id;
-  save(STORAGE.GENERAL_LISTS, state.generalLists);
-  save(STORAGE.GENERAL_ACTIVE, state.activeListId);
+  persistList(list);
+  persistActiveId();
   document.getElementById('save-modal').classList.remove('open');
   setScheme('fair');
   renderSavedLists();
@@ -1651,7 +1894,7 @@ function loadList(id) {
   const list = state.generalLists.find(l => l.id === id);
   if (!list) return;
   state.activeListId = id;
-  save(STORAGE.GENERAL_ACTIVE, id);
+  persistActiveId();
   document.getElementById('g-options').value = list.options.join('\n');
   setScheme('fair');
   renderSavedLists();
@@ -1661,7 +1904,7 @@ function loadList(id) {
 
 function deactivateList() {
   state.activeListId = null;
-  save(STORAGE.GENERAL_ACTIVE, null);
+  persistActiveId();
   renderSavedLists();
   renderSchemeInfo();
   document.getElementById('g-fair-readout-wrap').hidden = true;
@@ -1676,9 +1919,9 @@ function deleteList(id, e) {
   state.generalLists = state.generalLists.filter(l => l.id !== id);
   if (state.activeListId === id) {
     state.activeListId = null;
-    save(STORAGE.GENERAL_ACTIVE, null);
+    persistActiveId();
   }
-  save(STORAGE.GENERAL_LISTS, state.generalLists);
+  deleteListRemote(id);
   renderSavedLists();
   if (state.scheme === 'fair') {
     renderSchemeInfo();
@@ -1820,7 +2063,7 @@ function pickCaptains() {
   try { picked = pickCaptainsLogic(players, excludeLast); }
   catch (e) { alert(e.message); return; }
   state.lastCaptainPick = picked;
-  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  persistCaptainPlayers(document.getElementById('c-players').value);
   renderCaptainReveal(picked.cap1, picked.cap2);
 }
 
@@ -1911,10 +2154,11 @@ function confirmLog() {
   const pick = state.lastCaptainPick;
   if (!pick) return;
   const winner = pick.winner || pick.cap1;
-  state.captainLog.push({
+  const row = {
     date, cap1: cleanName(pick.cap1), cap2: cleanName(pick.cap2), winner: cleanName(winner)
-  });
-  save(STORAGE.CAPTAIN_LOG, state.captainLog);
+  };
+  state.captainLog.push(row);
+  appendCaptainLog(row);
   document.getElementById('log-modal').classList.remove('open');
   renderCaptainLog();
   renderCaptainContext();
@@ -1941,12 +2185,13 @@ function loadDemo() {
     if (!confirm('this will replace your current captain log with demo data. continue?')) return;
   }
   state.captainLog = DEMO_LOG.slice();
-  save(STORAGE.CAPTAIN_LOG, state.captainLog);
-  document.getElementById('c-players').value = [
+  replaceCaptainLog(state.captainLog);
+  const demoPlayersText = [
     'kabir','dev','parth','soham','kunal','aagam','tanish','jeneel','aryaan',
     'rudransh','shanay','vedant','vihaan','harsh','maddy','sahil','sam','deep','ronak (gk)'
   ].join('\n');
-  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  document.getElementById('c-players').value = demoPlayersText;
+  persistCaptainPlayers(demoPlayersText);
   renderCaptainLog();
   renderCaptainContext();
   unlockCaptainSteps();
@@ -2007,7 +2252,7 @@ document.getElementById('save-confirm').addEventListener('click', confirmSaveLis
 document.getElementById('log-pick-confirm').addEventListener('click', confirmLogPick);
 
 document.getElementById('c-players').addEventListener('input', () => {
-  save(STORAGE.CAPTAIN_PLAYERS, document.getElementById('c-players').value);
+  persistCaptainPlayers(document.getElementById('c-players').value);
   renderCaptainContext();
   unlockCaptainSteps();
 });
@@ -2028,8 +2273,19 @@ document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('click'
   if (e.target === bg) bg.classList.remove('open');
 }));
 
-document.getElementById('reset-btn').addEventListener('click', () => {
-  if (!confirm('clear all saved data?')) return;
+document.getElementById('reset-btn').addEventListener('click', async () => {
+  if (currentUser) {
+    if (!confirm('clear all your saved lists and captain history? this is permanent.')) return;
+    try {
+      await Promise.all([
+        supabase.from('tombola_lists').delete().eq('user_id', currentUser.id),
+        supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id),
+        supabase.from('tombola_captain_players').delete().eq('user_id', currentUser.id)
+      ]);
+    } catch (e) { console.error('reset failed', e); }
+  } else {
+    if (!confirm('clear all saved data?')) return;
+  }
   Object.values(STORAGE).forEach(k => localStorage.removeItem(k));
   location.reload();
 });
@@ -2041,11 +2297,11 @@ document.getElementById('log-date').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('log-confirm').click();
 });
 
-function init() {
+async function init() {
   applyTheme('general');
+  await initAuth();
   renderSavedLists();
-  const savedPlayers = load(STORAGE.CAPTAIN_PLAYERS, '');
-  if (savedPlayers) document.getElementById('c-players').value = savedPlayers;
+  if (state.captainPlayersText) document.getElementById('c-players').value = state.captainPlayersText;
   renderCaptainContext();
   renderCaptainLog();
   unlockCaptainSteps();
