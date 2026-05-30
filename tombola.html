@@ -1206,8 +1206,8 @@
 
 <main>
   <nav class="top-nav" aria-label="primary">
-    <a href="/#tools" class="back-link">← tools</a>
-    <a href="/" class="site-name">samarth goradia</a>
+    <a href="https://samarthgoradia.com/personal/tools/" class="back-link">← tools</a>
+    <a href="https://samarthgoradia.com" class="site-name">samarth goradia</a>
   </nav>
 
   <header class="brand">
@@ -1968,7 +1968,7 @@ async function confirmSaveList() {
     err.textContent = 'name already used'; return;
   }
   const list = {
-    id: 'list_' + Date.now(),
+    id: crypto.randomUUID(),
     name: name.trim(),
     options: opts,
     history: {},
@@ -2308,17 +2308,18 @@ function renderCaptainLog() {
 }
 
 async function loadDemo() {
-  if (!currentUser) { requestSignIn(); return; }
   if (state.captainLog.length > 0) {
     if (!confirm('this will replace your current captain log with demo data. continue?')) return;
   }
   state.captainLog = DEMO_LOG.slice();
-  try {
-    await replaceCaptainLog(state.captainLog);
-  } catch (e) {
-    alert('failed to load demo to server: ' + (e.message || 'unknown error'));
-    state.captainLog = [];
-    return;
+  if (currentUser) {
+    try {
+      await replaceCaptainLog(state.captainLog);
+    } catch (e) {
+      alert('failed to load demo to server: ' + (e.message || 'unknown error'));
+      state.captainLog = [];
+      return;
+    }
   }
   const demoPlayersText = [
     'kabir','dev','parth','soham','kunal','aagam','tanish','jeneel','aryaan',
