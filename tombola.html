@@ -120,6 +120,50 @@
   }
 
   /* ================================================================
+     TOP NAV - back to tools + name
+  ================================================================ */
+  .top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    margin-bottom: 18px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .theme-general .top-nav {
+    border-bottom: 1px solid var(--rule);
+  }
+  .theme-captain .top-nav {
+    border-bottom: 1px dashed var(--rule);
+  }
+  .top-nav a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .top-nav a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .top-nav .back-link {
+    color: var(--ink-mute);
+  }
+  .top-nav .back-link:hover {
+    color: var(--accent);
+  }
+  .top-nav .site-name {
+    color: var(--ink);
+  }
+  @media (max-width: 640px) {
+    .top-nav { font-size: 9.5px; letter-spacing: 0.12em; padding: 8px 0; margin-bottom: 14px; }
+  }
+
+  /* ================================================================
      HEADER - editorial top bar
   ================================================================ */
   header.brand {
@@ -1161,6 +1205,11 @@
 <body class="theme-general">
 
 <main>
+  <nav class="top-nav" aria-label="primary">
+    <a href="/#tools" class="back-link">← tools</a>
+    <a href="/" class="site-name">samarth goradia</a>
+  </nav>
+
   <header class="brand">
     <div class="brand-left">
       <div class="brand-mark" id="brand-mark">Tombola</div>
@@ -1520,24 +1569,23 @@ async function loadDataForUser() {
   state.activeListId = load(STORAGE.GENERAL_ACTIVE, null);
   state.captainPlayersText = load(STORAGE.CAPTAIN_PLAYERS, '');
   if (currentUser) {
-    try {
-      const [listsRes, captainLogRes, captainPlayersRes] = await Promise.all([
-        supabase.from('tombola_lists').select('*').order('created_at', { ascending: true }),
-        supabase.from('tombola_captain_log').select('*').order('created_at', { ascending: true }),
-        supabase.from('tombola_captain_players').select('*').eq('user_id', currentUser.id).maybeSingle()
-      ]);
-      state.generalLists = (listsRes.data || []).map(r => ({
-        id: r.id, name: r.name, options: r.options, history: r.history,
-        lastPicked: r.last_picked, createdAt: r.created_at
-      }));
-      state.captainLog = (captainLogRes.data || []).map(r => ({
-        date: r.date, cap1: r.cap1, cap2: r.cap2, winner: r.winner
-      }));
-      if (captainPlayersRes.data?.players_text) {
-        state.captainPlayersText = captainPlayersRes.data.players_text;
-      }
-    } catch (e) {
-      console.error('failed to load from supabase', e);
+    const [listsRes, captainLogRes, captainPlayersRes] = await Promise.all([
+      supabase.from('tombola_lists').select('*').order('created_at', { ascending: true }),
+      supabase.from('tombola_captain_log').select('*').order('created_at', { ascending: true }),
+      supabase.from('tombola_captain_players').select('*').eq('user_id', currentUser.id).maybeSingle()
+    ]);
+    if (listsRes.error) console.error('load tombola_lists failed:', listsRes.error);
+    if (captainLogRes.error) console.error('load tombola_captain_log failed:', captainLogRes.error);
+    if (captainPlayersRes.error) console.error('load tombola_captain_players failed:', captainPlayersRes.error);
+    state.generalLists = (listsRes.data || []).map(r => ({
+      id: r.id, name: r.name, options: r.options, history: r.history,
+      lastPicked: r.last_picked, createdAt: r.created_at
+    }));
+    state.captainLog = (captainLogRes.data || []).map(r => ({
+      date: r.date, cap1: r.cap1, cap2: r.cap2, winner: r.winner
+    }));
+    if (captainPlayersRes.data?.players_text) {
+      state.captainPlayersText = captainPlayersRes.data.players_text;
     }
   } else {
     state.generalLists = [];
@@ -1546,20 +1594,30 @@ async function loadDataForUser() {
 }
 
 async function persistList(list) {
-  if (!currentUser) return;
-  try {
-    await supabase.from('tombola_lists').upsert({
-      id: list.id, user_id: currentUser.id,
-      name: list.name, options: list.options, history: list.history,
-      last_picked: list.lastPicked, updated_at: new Date().toISOString()
-    });
-  } catch (e) { console.error('persistList failed', e); }
+  if (!currentUser) throw new Error('not signed in');
+  const { data, error } = await supabase.from('tombola_lists').upsert({
+    id: list.id, user_id: currentUser.id,
+    name: list.name, options: list.options, history: list.history,
+    last_picked: list.lastPicked, updated_at: new Date().toISOString()
+  }).select();
+  if (error) {
+    console.error('persistList failed:', error);
+    throw error;
+  }
+  if (!data || data.length === 0) {
+    console.error('persistList returned no data - likely missing SELECT RLS policy');
+    throw new Error('saved but could not verify (RLS select policy missing?)');
+  }
+  return data[0];
 }
 
 async function deleteListRemote(id) {
   if (!currentUser) return;
-  try { await supabase.from('tombola_lists').delete().eq('id', id); }
-  catch (e) { console.error('deleteList failed', e); }
+  const { error } = await supabase.from('tombola_lists').delete().eq('id', id);
+  if (error) {
+    console.error('deleteList failed:', error);
+    throw error;
+  }
 }
 
 function persistActiveId() {
@@ -1568,22 +1626,30 @@ function persistActiveId() {
 }
 
 async function appendCaptainLog(row) {
-  if (!currentUser) return;
-  try {
-    await supabase.from('tombola_captain_log').insert({ user_id: currentUser.id, ...row });
-  } catch (e) { console.error('appendCaptainLog failed', e); }
+  if (!currentUser) throw new Error('not signed in');
+  const { error } = await supabase.from('tombola_captain_log').insert({ user_id: currentUser.id, ...row });
+  if (error) {
+    console.error('appendCaptainLog failed:', error);
+    throw error;
+  }
 }
 
 async function replaceCaptainLog(newRows) {
-  if (!currentUser) return;
-  try {
-    await supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id);
-    if (newRows.length) {
-      await supabase.from('tombola_captain_log').insert(
-        newRows.map(r => ({ user_id: currentUser.id, ...r }))
-      );
+  if (!currentUser) throw new Error('not signed in');
+  const { error: delErr } = await supabase.from('tombola_captain_log').delete().eq('user_id', currentUser.id);
+  if (delErr) {
+    console.error('replaceCaptainLog delete failed:', delErr);
+    throw delErr;
+  }
+  if (newRows.length) {
+    const { error: insErr } = await supabase.from('tombola_captain_log').insert(
+      newRows.map(r => ({ user_id: currentUser.id, ...r }))
+    );
+    if (insErr) {
+      console.error('replaceCaptainLog insert failed:', insErr);
+      throw insErr;
     }
-  } catch (e) { console.error('replaceCaptainLog failed', e); }
+  }
 }
 
 let _persistPlayersTimer = null;
@@ -1593,12 +1659,13 @@ function persistCaptainPlayers(text) {
   if (currentUser) {
     clearTimeout(_persistPlayersTimer);
     _persistPlayersTimer = setTimeout(async () => {
-      try {
-        await supabase.from('tombola_captain_players').upsert({
-          user_id: currentUser.id, players_text: text,
-          updated_at: new Date().toISOString()
-        });
-      } catch (e) { console.error('persistCaptainPlayers failed', e); }
+      const { error } = await supabase.from('tombola_captain_players').upsert({
+        user_id: currentUser.id, players_text: text,
+        updated_at: new Date().toISOString()
+      });
+      if (error) {
+        console.error('persistCaptainPlayers failed:', error);
+      }
     }, 600);
   }
 }
@@ -1859,7 +1926,7 @@ function openLogPickModal() {
   document.getElementById('log-pick-modal').classList.add('open');
 }
 
-function confirmLogPick() {
+async function confirmLogPick() {
   const list = getActiveList();
   if (!list || !state.lastGeneralPick) return;
   const key = state.lastGeneralPick.toLowerCase();
@@ -1867,7 +1934,12 @@ function confirmLogPick() {
   list.history[key] = (list.history[key] || 0) + 1;
   list.lastPicked = key;
   list.options = getOptions();
-  persistList(list);
+  try {
+    await persistList(list);
+  } catch (e) {
+    alert('failed to log pick: ' + (e.message || 'unknown error') + '\n\ncheck console for details');
+    return;
+  }
   document.getElementById('log-pick-modal').classList.remove('open');
   renderSavedLists();
   renderFairReadout();
@@ -1885,10 +1957,11 @@ function openSaveModal() {
   setTimeout(() => document.getElementById('save-name').focus(), 50);
 }
 
-function confirmSaveList() {
+async function confirmSaveList() {
   const name = document.getElementById('save-name').value;
   const opts = getOptions();
   const err = document.getElementById('save-error');
+  const btn = document.getElementById('save-confirm');
   if (opts.length < 2) { err.textContent = 'need at least 2 options'; return; }
   if (!name.trim()) { err.textContent = 'name required'; return; }
   if (state.generalLists.some(l => l.name.toLowerCase() === name.trim().toLowerCase())) {
@@ -1902,9 +1975,22 @@ function confirmSaveList() {
     lastPicked: null,
     createdAt: new Date().toISOString()
   };
+  err.textContent = '';
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = 'saving...';
+  try {
+    await persistList(list);
+  } catch (e) {
+    err.textContent = 'save failed: ' + (e.message || 'unknown error');
+    btn.disabled = false;
+    btn.textContent = origText;
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = origText;
   state.generalLists.push(list);
   state.activeListId = list.id;
-  persistList(list);
   persistActiveId();
   document.getElementById('save-modal').classList.remove('open');
   setScheme('fair');
@@ -1942,7 +2028,9 @@ function deleteList(id, e) {
     state.activeListId = null;
     persistActiveId();
   }
-  deleteListRemote(id);
+  deleteListRemote(id).catch(err => {
+    alert('delete failed on server: ' + (err.message || 'unknown error'));
+  });
   renderSavedLists();
   if (state.scheme === 'fair') {
     renderSchemeInfo();
@@ -2169,9 +2257,10 @@ function openLogModal() {
   document.getElementById('log-modal').classList.add('open');
 }
 
-function confirmLog() {
+async function confirmLog() {
   const date = document.getElementById('log-date').value.trim();
   const err = document.getElementById('log-error');
+  const btn = document.getElementById('log-confirm');
   if (!/^\d{2}-\d{2}-\d{4}$/.test(date)) { err.textContent = 'format must be dd-mm-yyyy'; return; }
   const [d, m, y] = date.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -2182,8 +2271,21 @@ function confirmLog() {
   const row = {
     date, cap1: cleanName(pick.cap1), cap2: cleanName(pick.cap2), winner: cleanName(winner)
   };
+  err.textContent = '';
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = 'logging...';
+  try {
+    await appendCaptainLog(row);
+  } catch (e) {
+    err.textContent = 'log failed: ' + (e.message || 'unknown error');
+    btn.disabled = false;
+    btn.textContent = origText;
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = origText;
   state.captainLog.push(row);
-  appendCaptainLog(row);
   document.getElementById('log-modal').classList.remove('open');
   renderCaptainLog();
   renderCaptainContext();
@@ -2205,12 +2307,19 @@ function renderCaptainLog() {
   </tr>`).join('');
 }
 
-function loadDemo() {
+async function loadDemo() {
+  if (!currentUser) { requestSignIn(); return; }
   if (state.captainLog.length > 0) {
     if (!confirm('this will replace your current captain log with demo data. continue?')) return;
   }
   state.captainLog = DEMO_LOG.slice();
-  replaceCaptainLog(state.captainLog);
+  try {
+    await replaceCaptainLog(state.captainLog);
+  } catch (e) {
+    alert('failed to load demo to server: ' + (e.message || 'unknown error'));
+    state.captainLog = [];
+    return;
+  }
   const demoPlayersText = [
     'kabir','dev','parth','soham','kunal','aagam','tanish','jeneel','aryaan',
     'rudransh','shanay','vedant','vihaan','harsh','maddy','sahil','sam','deep','ronak (gk)'
